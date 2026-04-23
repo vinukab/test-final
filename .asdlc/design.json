@@ -1,0 +1,32 @@
+{
+  "overview": "The test-final application is a minimal single-component architecture consisting of a server-side rendered Hello World web application built with Go and net/http. The service serves a static HTML page at the root path, enforces HTTP security headers, and handles 404s gracefully. No backend API or database dependencies are required given the purely presentational nature of the application.",
+  "requirements": [
+    "The application must serve a web page displaying 'Hello, World!' as a heading element at the root path '/'.",
+    "The root path must return HTTP 200 OK under normal conditions.",
+    "Any undefined route must return a user-friendly HTTP 404 response.",
+    "The HTML page must include a valid \u003ctitle\u003e tag (e.g., 'Hello World').",
+    "The page must be well-formed, responsive, and render correctly on screen widths from 320px to 2560px.",
+    "Body font size must be at least 16px equivalent.",
+    "The page must fully load within 3 seconds on a standard broadband connection.",
+    "Total page size (HTML, CSS, assets) must not exceed 1 MB.",
+    "The application must set HTTP security headers: X-Content-Type-Options, X-Frame-Options, and Content-Security-Policy.",
+    "The application must not expose sensitive server or environment information in response headers.",
+    "The application must handle at least 50 concurrent requests without response time degradation.",
+    "The application must expose a /health endpoint returning HTTP 200.",
+    "The application must be compatible with the latest two major versions of Chrome, Firefox, Safari, and Edge."
+  ],
+  "components": [
+    {
+      "name": "hello-world-web",
+      "componentType": "web-app",
+      "language": "Go / net/http",
+      "dependsOn": [],
+      "entrypoint": "deployment/web-application",
+      "buildpack": "docker",
+      "appPath": "/hello-world-web",
+      "openAPISpec": "openapi: 3.0.3\ninfo:\n  title: Hello World Web Application\n  description: Serves a Hello World HTML page and basic health endpoint.\n  version: 1.0.0\npaths:\n  /:\n    get:\n      summary: Hello World page\n      description: Returns the Hello World HTML page with HTTP 200.\n      responses:\n        '200':\n          description: HTML page containing the Hello World greeting.\n          content:\n            text/html:\n              schema:\n                type: string\n  /health:\n    get:\n      summary: Health check\n      description: Returns 200 OK when the service is healthy.\n      responses:\n        '200':\n          description: Service is healthy.\n          content:\n            application/json:\n              schema:\n                type: object\n                properties:\n                  status:\n                    type: string\n                    example: ok\n  /{path}:\n    get:\n      summary: Catch-all 404\n      description: Returns a user-friendly 404 HTML page for any undefined route.\n      parameters:\n        - name: path\n          in: path\n          required: true\n          schema:\n            type: string\n      responses:\n        '404':\n          description: Page not found.\n          content:\n            text/html:\n              schema:\n                type: string\n",
+      "componentAgentInstructions": "## Component: hello-world-web\n\n### Language \u0026 Framework\n- **Language:** Go (1.22+)\n- **HTTP library:** standard `net/http` package only — no third-party web frameworks.\n- **Listening port:** `9090`\n\n### Project Structure\n```\n/hello-world-web\n  main.go\n  Dockerfile\n  go.mod\n```\n\n### Handlers\n\n#### `GET /`\n- Respond with HTTP `200 OK`.\n- Content-Type: `text/html; charset=utf-8`.\n- Return a complete, valid HTML5 document that:\n  - Has `\u003ctitle\u003eHello World\u003c/title\u003e`.\n  - Contains an `\u003ch1\u003eHello, World!\u003c/h1\u003e` heading element.\n  - Includes inline CSS (no external stylesheets or JS required) for:\n    - Responsive layout using a centered flexbox or grid approach.\n    - `font-size: 1rem` (16px base) minimum for body text.\n    - Renders correctly from 320px to 2560px viewport widths.\n  - Uses `\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1\"\u003e` for mobile responsiveness.\n  - Uses semantic HTML5 (`\u003cmain\u003e`, `\u003ch1\u003e`, etc.).\n\n#### `GET /health`\n- Respond with HTTP `200 OK`.\n- Content-Type: `application/json`.\n- Body: `{\"status\": \"ok\"}`.\n\n#### All other routes (catch-all)\n- Respond with HTTP `404 Not Found`.\n- Content-Type: `text/html; charset=utf-8`.\n- Return a user-friendly HTML page explaining the page was not found, with a link back to `/`.\n- Do NOT use Go's default `http.NotFound` plain-text response — render proper HTML.\n\n### Security Headers Middleware\nWrap all handlers with a middleware that sets the following headers on every response:\n```\nX-Content-Type-Options: nosniff\nX-Frame-Options: DENY\nContent-Security-Policy: default-src 'self'; style-src 'unsafe-inline'\nReferrer-Policy: no-referrer\n```\nAlso, **remove or suppress** the `Server` header (do not expose Go version or server software).\n\n### Concurrency\n- Use Go's default `net/http` server which handles each request in a goroutine — no extra tuning needed for 50 concurrent users.\n- Set reasonable timeouts:\n  - `ReadTimeout`: 5s\n  - `WriteTimeout`: 10s\n  - `IdleTimeout`: 60s\n\n### Dockerfile\n- Multi-stage build:\n  1. `FROM golang:1.22-alpine AS builder` — compile the binary with `CGO_ENABLED=0`.\n  2. `FROM scratch` (or `alpine:3.19`) — copy compiled binary only.\n- Expose port `9090`.\n- `ENTRYPOINT` points to the compiled binary.\n- Total image size should remain small (no debug tools in final image).\n\n### go.mod\n- Module name: `github.com/test-final/hello-world-web`\n- Go version: `1.22`\n- No external dependencies.\n\n### Edge Cases\n- Any request path other than `/` and `/health` must go to the 404 handler — including `/favicon.ico`, `/robots.txt`, etc.\n- The routing must use an explicit mux (e.g., `http.NewServeMux()`) with exact pattern matching for `/` to avoid Go's default prefix-match behavior catching all routes on the root handler. Register `/` with a manual check: if `r.URL.Path != \"/\"` inside the root handler, call the 404 handler and return.\n- Do not log sensitive request details (e.g., full headers or query strings) to stdout.\n- Graceful shutdown: listen for `SIGINT`/`SIGTERM` and call `server.Shutdown(ctx)` with a 10-second context timeout."
+    }
+  ],
+  "sourceSpec": "spec-v1"
+}
